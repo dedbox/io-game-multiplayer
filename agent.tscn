@@ -1,0 +1,18 @@
+[gd_scene format=1]
+
+[node name="agent" type="Polygon2D"]
+
+transform/pos = Vector2( 50, 50 )
+polygon = Vector2Array( 0, 0, 2.5, 10, -2.5, 10 )
+uv = Vector2Array(  )
+color = Color( 0.867188, 0.851838, 0.474243, 1 )
+vertex_colors = ColorArray(  )
+offset = Vector2( 0, 0 )
+texture/texture = null
+texture/offset = Vector2( 0, 0 )
+texture/scale = Vector2( 1, 1 )
+texture/rotation = 0.0
+invert/enable = false
+invert/border = 100.0
+
+
