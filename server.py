@@ -1,207 +1,225 @@
 #!/usr/bin/env python
 
-"""A multiplayer game server."""
+'''Physical simulation of dynamic agents.'''
 
-import asyncio
-from select import select
-from socket import socket, AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
-from random import uniform
+from abc import abstractmethod
 from numpy import array
 from numpy.linalg import norm
+from asyncio import get_event_loop
+from select import select
+from socket import AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
+from socket import socket
 
-CLOCK_FREQ = 60                 # Hz
-CLOCK_PERIOD = 1 / CLOCK_FREQ   # s
+EPSILON = 0.01
 
-def normalized(vec):
-    """Returns a unit vector pointing in the direction of the given vector."""
-    vec_len = norm(vec)
-    return vec if vec_len == 0 else vec / vec_len
 
-class Agent:
-    """A mobile agent."""
+class Simulator:
+    '''Maintains consistent passage of time.'''
 
-    def __init__(self, x0, x1):
-        self.pos = array([float(x0), float(x1)])  # px
-        self.speed = 10                           # px / s
-        self.state = ('IDLE',)
+    def __init__(self, freq):
+        self.period = 1 / freq
+        self.now = None
+        self.handle = None
 
-    def move_to(self, to_x, to_y):
-        """Start moving to the given coordinates."""
-        self.state = ('MOVE', array([float(to_x), float(to_y)]))
-        print('MOVE {:.2f} {:.2f}'.format(to_x, to_y))
+    @abstractmethod
+    def on_tick(self, delta):
+        '''NOT IMPLEMENTED'''
+
+    def tick(self):
+        '''Advances the simulator by one tick.'''
+        self.on_tick(self.period)
+        self.now += self.period
+        self.handle = get_event_loop().call_at(self.now, self.tick)
+
+    def start(self):
+        '''Runs the simulator.'''
+        loop = get_event_loop()
+        self.now = loop.time()
+        self.tick()
 
     def stop(self):
-        """Stop moving."""
-        self.state = ('IDLE',)
+        '''Halts the simulator.'''
+        if self.handle:
+            self.handle.cancel()
+            self.handle = None
 
-    def process(self, delta):
-        """Advance the simulation."""
-        if self.state[0] == 'MOVE':
-            self.process_move(delta)
 
-    def process_move(self, delta):
-        """Move toward the target."""
-        x_i = self.pos
-        x_f = self.state[1]
-        v_x_f = x_f - x_i
-        v_x = normalized(v_x_f) * self.speed * delta
-        self.pos += v_x if norm(v_x) < norm(v_x_f) else v_x_f
-        if norm(v_x_f) < 0.01:
-            self.stop()
+class Beacon(Simulator):
+    '''Broadcasts the server IP.'''
 
-def simulate(agent):
-    """A test simulation."""
-    agent.move_to(0, 50)
+    def __init__(self):
+        super().__init__(1)
+        self.sock = socket(AF_INET, SOCK_DGRAM, 0)
+        self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+        self.sock.setblocking(False)
+        self.sock.connect(('255.255.255.255', 3699))
+        self.my_addr = str(self.sock.getsockname()[0]).encode()
+        self.i = 0
 
-    loop = asyncio.get_event_loop()
-    theta0 = loop.time()
-    theta = theta0 + CLOCK_PERIOD
+    def on_tick(self, delta):
+        print('BEACON', delta)
+        self.sock.sendto(self.my_addr, ('255.255.255.255', 3699))
 
-    def tick():
-        """Advance the simulation."""
-        nonlocal theta
 
-        agent.process(CLOCK_PERIOD)
+class Server(Simulator):
+    '''Connects UDP clients to the world.'''
 
-        if agent.state[0] == 'IDLE':
-            to_x = uniform(0, 100)
-            to_y = uniform(0, 100)
-            agent.move_to(to_x, to_y)
+    def __init__(self, world):
+        super().__init__(10)
+        self.world = world
+        self.clients = {}
+        self.sock = socket(AF_INET, SOCK_DGRAM, 0)
+        self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+        self.sock.setblocking(False)
+        self.sock.bind(('0.0.0.0', 3700))
+        self.loop = get_event_loop()
 
-        loop.call_at(theta, tick)
-        theta += CLOCK_PERIOD
+    def on_tick(self, delta):
+        self.drop_stale_clients()
+        self.update_clients()
+        self.handle_requests()
 
-    tick()
-
-#     def _report():
-#         d_theta = theta - theta0
-#         pos_x, pos_y = agent.pos
-#         buf = ' '.join([str(x) for x in (i, d_theta, pos_x, pos_y)])
-#         sock.sendto(buf.encode(), (UDP_HOST, UDP_PORT))
-#         print('TICK {:06d} {:.2f} ({:3.2f},{:3.2f})'.format(i, d_theta, pos_x, pos_y))
-
-#     def tick():
-#         """Advance the clock."""
-#         nonlocal theta, i
-#         _report()
-
-#         agent.process(CLOCK_PERIOD)
-
-#         theta += CLOCK_PERIOD
-#         i += 1
-
-#         if agent.state[0] == 'IDLE':
-#             target_x = uniform(0, 100)
-#             target_y = uniform(0, 100)
-#             agent.move_to(target_x, target_y)
-#             print('-- MOVE ({:3.2f},{:3.2f})'.format(target_x, target_y))
-
-#         loop.call_at(theta, tick)
-
-#     loop.call_at(theta, tick)
-
-#     # clients = {}
-
-#     # def serve():
-#     #     while sock.get_available
-
-#     # loop.call_at(theta, serve)
-
-# def old_main():
-#     """The main function."""
-#     loop = asyncio.get_event_loop()
-#     sock = socket(AF_INET, SOCK_DGRAM, 0)
-#     sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-#     sock.setblocking(False)
-#     loop.call_soon(run, loop, sock)
-#     try:
-#         loop.run_forever()
-#     finally:
-#         loop.close()
-
-def advertise():
-    """Broadcasts the server IP.""" 
-    sock = socket(AF_INET, SOCK_DGRAM, 0)
-    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    sock.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
-    sock.setblocking(False)
-    sock.connect(('255.255.255.255', 3699))
-
-    addr = str(sock.getsockname()[0]).encode()
-    loop = asyncio.get_event_loop()
-    theta = loop.time()
-
-    def tick():
-        """Advance the clock."""
-        nonlocal theta
-        sock.sendto(addr, ('255.255.255.255', 3699))
-        theta += 1
-        loop.call_at(theta, tick)
-
-    tick()
-
-def serve(agent):
-    """Handles client connections."""
-    sock = socket(AF_INET, SOCK_DGRAM, 0)
-    sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
-    sock.setblocking(False)
-    sock.bind(('0.0.0.0', 3700))
-
-    loop = asyncio.get_event_loop()
-    theta = loop.time()
-    clients = {}
-
-    def tick():
-        """Advances the clock."""
-        nonlocal agent, clients, theta
-
-        # drop stale clients
-        now = loop.time()
-        new_clients = {}
-        for addr, then in clients.items():
-            if now - then < 3:
-                new_clients[addr] = then
+    def drop_stale_clients(self):
+        now = self.loop.time()
+        clients = {}
+        for addr, then in self.clients.items():
+            if now - then < 5:
+                clients[addr] = then
             else:
-                print('DISCONNECT ', addr)
-        clients = new_clients
+                print('DISCONNECT', addr)
+                self.world.stop_agent(addr)
+        self.clients = clients
 
-        # update fresh clients
-        for addr in clients:
-            msg = 'TICK {:.2f} {:.2f}'.format(agent.pos[0], agent.pos[1])
-            sock.sendto(msg.encode(), addr)
+    def update_clients(self):
+        for addr in self.clients:
+            agent = self.world.agent(addr)
+            if not agent:
+                agent = self.world.start_agent(addr)
 
-        # handle incoming requests
+            self_msg = 'TICK|' + str(agent)
+            self.sock.sendto(self_msg.encode(), addr)
+
+            others_msg = ['OTHERS']
+            for agent_addr, agent in self.world.agents.items():
+                if agent_addr != addr:
+                    others_msg += [str(agent_addr), str(agent)]
+            if len(others_msg) > 0:
+                self.sock.sendto('|'.join(others_msg).encode(), addr)
+
+    def handle_requests(self):
         while True:
-            results = select([sock], [], [sock], 0.001)
-            if results[0] == []:
+            rd = select([self.sock], [], [self.sock], 0.0001)
+            if rd[0] == []:
                 break
 
-            msg, addr = sock.recvfrom(1025)
-            cmd = msg.decode('utf-8').split(' ')
+            msg, addr = self.sock.recvfrom(1024)
+            cmd = msg.decode('utf-8').split('|')
 
             if cmd[0] == 'CONNECT':
-                print('CONNECT {}:{}'.format(*addr))
-                clients[addr] = loop.time()
+                if addr in self.clients:
+                    print('PING {}:{}'.format(*addr))
+                else:
+                    print('CONNECT {}:{}'.format(*addr))
+                self.clients[addr] = self.loop.time()
+            elif cmd[0] == 'MOVE':
+                agent = self.world.agent(addr)
+                if agent:
+                    agent.move_to(cmd[1], cmd[2])
             else:
-                print('BAD COMMAND ', cmd)
+                print('BAD REQUEST', cmd)
 
-        theta += 0.1
-        loop.call_at(theta, tick)
 
-    tick()
+class World(Simulator):
+    '''A set of agents and the rules that govern their behavior.'''
+
+    def __init__(self):
+        super().__init__(10)
+        self.agents = {}
+
+    def start_agent(self, key):
+        self.agents[key] = Agent()
+        return self.agents[key]
+
+    def agent(self, key):
+        return self.agents.get(key)
+
+    def stop_agent(self, key):
+        self.agents[key].stop()
+        del self.agents[key]
+
+    def on_tick(self, delta):
+        for key, agent in self.agents.items():
+            if agent.is_alive() and not agent.is_idle():
+                agent.tick(delta)
+            if agent.is_alive() and not agent.is_idle():
+                print('AGENT', key, agent.position)
+
+
+class Agent:
+    '''A physical object; An agent of visible change.'''
+
+    def __init__(self, x=0, y=0):
+        self.position = array([float(x), float(y)])
+        self.speed = 20
+        self.mode = 'IDLE'
+        self.target = None
+
+    def __str__(self):
+        return '{:.2f}|{:.2f}'.format(*self.position)
+
+    def is_alive(self):
+        '''An agent is alive until it is dead.'''
+        return self.mode != 'DEAD'
+
+    def is_idle(self):
+        '''An idle agent does nothing.'''
+        return self.mode == 'IDLE'
+
+    def tick(self, delta):
+        '''Advance the agent simulation by one clock period.'''
+        if self.mode == 'MOVE':
+            trajectory = self.target - self.position
+            distance = norm(trajectory)
+            if distance == 0:
+                heading = array([0.0, 0.0])
+            else:
+                heading = trajectory / distance
+            step = heading * self.speed * delta
+            self.position += step if norm(step) < distance else trajectory
+            if distance < EPSILON:
+                self.idle()
+
+    def idle(self):
+        '''Stop moving.'''
+        print('IDLE')
+        self.mode = 'IDLE'
+        self.target = None
+
+    def move_to(self, x, y):
+        '''Start moving to the given coordinates.'''
+        print('MOVE {} {}'.format(x, y))
+        self.mode = 'MOVE'
+        self.target = array([float(x), float(y)])
+
+    def stop(self):
+        '''Destroy the agent.'''
+        print('DEAD')
+        self.mode = 'DEAD'
+        self.target = None
+
 
 def main():
-    """The main function."""
-    agent = Agent(50, 50)
+    world = World()
+    server = Server(world)
+    beacon = Beacon()
 
-    loop = asyncio.get_event_loop()
-    loop.call_soon(simulate, agent)
-    loop.call_soon(advertise)
-    loop.call_soon(serve, agent)
-    try:
-        loop.run_forever()
-    finally:
-        loop.close()
+    loop = get_event_loop()
+    loop.call_soon(world.start)
+    loop.call_soon(server.start)
+    loop.call_soon(beacon.start)
+    loop.run_forever()
+
 
 if __name__ == '__main__':
     main()
