@@ -10,6 +10,7 @@ from select import select
 from socket import AF_INET, SOCK_DGRAM, SOL_SOCKET, SO_REUSEADDR, SO_BROADCAST
 from socket import socket
 
+PULSE_PERIOD = 0.5
 EPSILON = 0.01
 
 
@@ -33,8 +34,7 @@ class Simulator:
 
     def start(self):
         '''Runs the simulator.'''
-        loop = get_event_loop()
-        self.now = loop.time()
+        self.now = get_event_loop().time()
         self.tick()
 
     def stop(self):
@@ -55,7 +55,6 @@ class Beacon(Simulator):
         self.sock.setblocking(False)
         self.sock.connect(('255.255.255.255', 3699))
         self.my_addr = str(self.sock.getsockname()[0]).encode()
-        self.i = 0
 
     def on_tick(self, delta):
         print('BEACON', delta)
@@ -65,9 +64,9 @@ class Beacon(Simulator):
 class Server(Simulator):
     '''Connects UDP clients to the world.'''
 
-    def __init__(self, world):
+    def __init__(self):
         super().__init__(10)
-        self.world = world
+        self.world = World()
         self.clients = {}
         self.sock = socket(AF_INET, SOCK_DGRAM, 0)
         self.sock.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
@@ -77,6 +76,7 @@ class Server(Simulator):
 
     def on_tick(self, delta):
         self.drop_stale_clients()
+        self.world.on_tick(delta)
         self.update_clients()
         self.handle_requests()
 
@@ -84,10 +84,10 @@ class Server(Simulator):
         now = self.loop.time()
         clients = {}
         for addr, then in self.clients.items():
-            if now - then < 5:
+            if now - then < 5 * PULSE_PERIOD:
                 clients[addr] = then
             else:
-                print('DISCONNECT', addr)
+                print(self.now, 'DISCONNECT', addr)
                 self.world.stop_agent(addr)
         self.clients = clients
 
@@ -118,16 +118,16 @@ class Server(Simulator):
 
             if cmd[0] == 'CONNECT':
                 if addr in self.clients:
-                    print('PING {}:{}'.format(*addr))
+                    print(self.now, 'PING {}:{}'.format(*addr))
                 else:
-                    print('CONNECT {}:{}'.format(*addr))
+                    print(self.now, 'CONNECT {}:{}'.format(*addr))
                 self.clients[addr] = self.loop.time()
             elif cmd[0] == 'MOVE':
                 agent = self.world.agent(addr)
                 if agent:
                     agent.move_to(cmd[1], cmd[2])
             else:
-                print('BAD REQUEST', cmd)
+                print(self.now, 'BAD REQUEST', cmd)
 
 
 class World(Simulator):
@@ -210,12 +210,10 @@ class Agent:
 
 
 def main():
-    world = World()
-    server = Server(world)
+    server = Server()
     beacon = Beacon()
 
     loop = get_event_loop()
-    loop.call_soon(world.start)
     loop.call_soon(server.start)
     loop.call_soon(beacon.start)
     loop.run_forever()
