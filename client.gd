@@ -7,11 +7,13 @@ var cli_addr
 var srv = PacketPeerUDP.new()
 var srv_addr
 
-var pulse
+onready var pulse = OS.get_ticks_msec()
 
 var agent_factory = preload("res://agent.tscn")
 var agent
 var others = {}
+
+const PULSE_PERIOD = 500 
 
 func _ready():
 	setup_cli()
@@ -29,12 +31,13 @@ func _input(event):
 		send('MOVE|' + str(event.pos[0]) + '|' + str(event.pos[1]))
 
 func _fixed_process(delta):
-	if OS.get_ticks_msec() - pulse > 1000:
+	if OS.get_ticks_msec() - pulse >= PULSE_PERIOD:
 		send('CONNECT')
+		pulse = OS.get_ticks_msec()
 	
 	while cli.get_available_packet_count() > 0:
 		var msg = Array(recv().split('|'))
-		print(msg)
+#		print(msg)
 		if msg[0] == 'TICK':
 			agent.set_pos(Vector2(float(msg[1]), float(msg[2])))
 		if msg[0] == 'OTHERS':
@@ -84,7 +87,6 @@ func setup_srv():
 
 func send(msg):
 	cli.put_packet(String(msg).to_utf8())
-	pulse = OS.get_ticks_msec()
 
 func recv():
 	return cli.get_packet().get_string_from_ascii()
