@@ -13,7 +13,7 @@ var agent_factory = preload("res://agent.tscn")
 var agent
 var others = {}
 
-const PULSE_PERIOD = 500 
+const PULSE_PERIOD = 500
 
 func _ready():
 	setup_cli()
@@ -21,14 +21,29 @@ func _ready():
 	send('CONNECT')
 	
 	agent = agent_factory.instance()
+	agent.get_node("camera").make_current()
 	add_child(agent)
 	
 	set_process_input(true)
 	set_fixed_process(true)
 
+func limit(vec, rect):
+	var out = Vector2(0, 0)
+	out.x = min(rect.pos.x + rect.size.width, max(rect.pos.x, vec.x))
+	out.y = min(rect.pos.y + rect.size.height, max(rect.pos.y, vec.y))
+	return out
+
 func _input(event):
 	if event.is_action_pressed('move_to'):
-		send('MOVE|' + str(event.pos[0]) + '|' + str(event.pos[1]))
+		var min_x = agent.get_node("camera").get_limit(MARGIN_LEFT)
+		var min_y = agent.get_node("camera").get_limit(MARGIN_TOP)
+		var max_x = agent.get_node("camera").get_limit(MARGIN_RIGHT)
+		var max_y = agent.get_node("camera").get_limit(MARGIN_BOTTOM)
+		var cam_limit = Rect2(min_x, min_y, max_x - min_x, max_y - min_y)
+		var origin = get_viewport().get_canvas_transform()[2]
+		var to = limit(event.pos - origin, cam_limit)
+		send('MOVE|' + str(to.x) + '|' + str(to.y))
+		print('MOVE|' + str(to.x) + '|' + str(to.y))
 
 func _fixed_process(delta):
 	if OS.get_ticks_msec() - pulse >= PULSE_PERIOD:
@@ -38,8 +53,26 @@ func _fixed_process(delta):
 	while cli.get_available_packet_count() > 0:
 		var msg = Array(recv().split('|'))
 #		print(msg)
+		
 		if msg[0] == 'TICK':
-			agent.set_pos(Vector2(float(msg[1]), float(msg[2])))
+			var pos = agent.get_pos()
+			var animation = agent.get_animation()
+			var looking = agent.get_looking()
+			
+			var new_pos = Vector2(float(msg[1]), float(msg[2]))
+			if new_pos == agent.get_pos():
+				animation = 'standing'
+			else:
+				agent.set_pos(new_pos)
+				animation = 'running'
+				if new_pos.x < pos.x:
+					looking = 'left'
+				elif new_pos.x > pos.x:
+					looking = 'right'
+			
+			animation == agent.get_animation() or agent.set_animation(animation)
+			looking == agent.get_looking() or agent.set_looking(looking)
+		
 		if msg[0] == 'OTHERS':
 			var agents = {}
 			msg.pop_front()

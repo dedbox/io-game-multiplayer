@@ -1,18 +1,35 @@
-[gd_scene format=1]
+[gd_scene load_steps=3 format=1]
 
-[node name="agent" type="Polygon2D"]
+[ext_resource path="res://MrG/sprite/animations.tres" type="SpriteFrames" id=1]
+[ext_resource path="res://agent.gd" type="Script" id=2]
+
+[node name="agent" type="AnimatedSprite"]
 
 transform/pos = Vector2( 50, 50 )
-polygon = Vector2Array( 0, 0, 2.5, 10, -2.5, 10 )
-uv = Vector2Array(  )
-color = Color( 0.867188, 0.851838, 0.474243, 1 )
-vertex_colors = ColorArray(  )
-offset = Vector2( 0, 0 )
-texture/texture = null
-texture/offset = Vector2( 0, 0 )
-texture/scale = Vector2( 1, 1 )
-texture/rotation = 0.0
-invert/enable = false
-invert/border = 100.0
+frames = ExtResource( 1 )
+animation = "running"
+frame = 1
+playing = true
+offset = Vector2( 0, -30 )
+script/script = ExtResource( 2 )
+
+[node name="camera" type="Camera2D" parent="."]
+
+anchor_mode = 1
+rotating = false
+current = false
+zoom = Vector2( 1, 1 )
+limit/left = 0
+limit/top = 0
+limit/right = 1600
+limit/bottom = 1152
+drag_margin/h_enabled = true
+drag_margin/v_enabled = true
+smoothing/enable = false
+smoothing/speed = 5.0
+drag_margin/left = 0.2
+drag_margin/top = 0.2
+drag_margin/right = 0.2
+drag_margin/bottom = 0.2
 
 

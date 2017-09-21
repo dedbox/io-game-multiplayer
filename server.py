@@ -161,7 +161,7 @@ class Agent:
 
     def __init__(self, x=0, y=0):
         self.position = array([float(x), float(y)])
-        self.speed = 20
+        self.speed = 200
         self.mode = 'IDLE'
         self.target = None
 
