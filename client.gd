@@ -40,11 +40,15 @@ func limit(vec, rect):
 	out.y = min(rect.pos.y + rect.size.height, max(rect.pos.y, vec.y))
 	return out
 
+func set_character(target, id):
+	print('SET CHARACTER ', id)
+	target.set_sprite_frames(characters[id][0])
+	target.set_scale(Vector2(characters[id][1], characters[id][2]))
+	target.set_offset(Vector2(characters[id][3], characters[id][4]))
+
 func use_character(id):
-	print('USE CHARACTER', id)
-	agent.set_sprite_frames(characters[id][0])
-	agent.set_scale(Vector2(characters[id][1], characters[id][2]))
-	agent.set_offset(Vector2(characters[id][3], characters[id][4]))
+	set_character(agent, id)
+	send('CHARACTER|' + str(id))
 
 func _input(event):
 	if event.is_action_pressed('move_to'):
@@ -99,6 +103,8 @@ func _fixed_process(delta):
 				var addr = msg[0]
 				var x = msg[1]
 				var y = msg[2]
+				var character = int(msg[3])
+				msg.pop_front()
 				msg.pop_front()
 				msg.pop_front()
 				msg.pop_front()
@@ -108,6 +114,8 @@ func _fixed_process(delta):
 					agents[addr] = agent_factory.instance()
 					add_child(agents[addr])
 				agents[addr].set_pos(Vector2(x, y))
+				if character != agents[addr].character:
+					set_character(agents[addr], character)
 			for addr in others:
 				if not addr in agents:
 					remove_child(others[addr])

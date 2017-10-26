@@ -1,5 +1,7 @@
 extends AnimatedSprite
 
+export var character = 1
+
 func get_looking():
 	return 'left' if self.is_flipped_h() else 'right'
 

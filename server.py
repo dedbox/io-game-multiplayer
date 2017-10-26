@@ -126,6 +126,11 @@ class Server(Simulator):
                 agent = self.world.agent(addr)
                 if agent:
                     agent.move_to(cmd[1], cmd[2])
+            elif cmd[0] == 'CHARACTER':
+                print(self.now, 'CHARACTER {}:{} {}'.format(
+                    *(addr + (cmd[1],))))
+                agent = self.world.agent(addr)
+                agent.character = cmd[1]
             else:
                 print(self.now, 'BAD REQUEST', cmd)
 
@@ -164,9 +169,14 @@ class Agent:
         self.speed = 200
         self.mode = 'IDLE'
         self.target = None
+        self.character = 1
 
     def __str__(self):
-        return '{:.2f}|{:.2f}'.format(*self.position)
+        return '{:.2f}|{:.2f}|{}'.format(
+            self.position[0],
+            self.position[1],
+            self.character
+        )
 
     def is_alive(self):
         '''An agent is alive until it is dead.'''

@@ -8,10 +8,11 @@
 transform/pos = Vector2( 50, 50 )
 frames = ExtResource( 1 )
 animation = "standing"
-frame = 8
+frame = 2
 playing = true
 offset = Vector2( 0, -30 )
 script/script = ExtResource( 2 )
+character = 1
 
 [node name="camera" type="Camera2D" parent="."]
 
