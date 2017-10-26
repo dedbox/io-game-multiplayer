@@ -16,7 +16,8 @@ var others = {}
 var characters = [
 	null,
 	[load("res://MrG/sprite/animations.tres"), 1, 1, 0, -30],
-	[load("res://athan/sprite/animations.tres"), 2, 2, 0, -13]
+	[load("res://athan/sprite/animations.tres"), 2, 2, 0, -13],
+	[load("res://Evan/slime/animations.tres"), 3, 3, 1.5, -3]
 	]
 
 const PULSE_PERIOD = 500
@@ -39,6 +40,12 @@ func limit(vec, rect):
 	out.y = min(rect.pos.y + rect.size.height, max(rect.pos.y, vec.y))
 	return out
 
+func use_character(id):
+	print('USE CHARACTER', id)
+	agent.set_sprite_frames(characters[id][0])
+	agent.set_scale(Vector2(characters[id][1], characters[id][2]))
+	agent.set_offset(Vector2(characters[id][3], characters[id][4]))
+
 func _input(event):
 	if event.is_action_pressed('move_to'):
 		var min_x = agent.get_node("camera").get_limit(MARGIN_LEFT)
@@ -51,15 +58,11 @@ func _input(event):
 		send('MOVE|' + str(to.x) + '|' + str(to.y))
 		print('MOVE|' + str(to.x) + '|' + str(to.y))
 	if event.is_action_pressed('use_character_1'):
-		print('USE CHARACER 1')
-		agent.set_sprite_frames(characters[1][0])
-		agent.set_scale(Vector2(characters[1][1], characters[1][2]))
-		agent.set_offset(Vector2(characters[1][3], characters[1][4]))
+		use_character(1)
 	if event.is_action_pressed('use_character_2'):
-		print('USE CHARACER 2')
-		agent.set_sprite_frames(characters[2][0])
-		agent.set_scale(Vector2(characters[2][1], characters[2][2]))
-		agent.set_offset(Vector2(characters[2][3], characters[2][4]))
+		use_character(2)
+	if event.is_action_pressed('use_character_3'):
+		use_character(3)
 
 func _fixed_process(delta):
 	if OS.get_ticks_msec() - pulse >= PULSE_PERIOD:
