@@ -13,6 +13,12 @@ var agent_factory = preload("res://agent.tscn")
 var agent
 var others = {}
 
+var characters = [
+	null,
+	[load("res://MrG/sprite/animations.tres"), 1, 1, 0, -30],
+	[load("res://athan/sprite/animations.tres"), 2, 2, 0, -13]
+	]
+
 const PULSE_PERIOD = 500
 
 func _ready():
@@ -44,6 +50,16 @@ func _input(event):
 		var to = limit(event.pos - origin, cam_limit)
 		send('MOVE|' + str(to.x) + '|' + str(to.y))
 		print('MOVE|' + str(to.x) + '|' + str(to.y))
+	if event.is_action_pressed('use_character_1'):
+		print('USE CHARACER 1')
+		agent.set_sprite_frames(characters[1][0])
+		agent.set_scale(Vector2(characters[1][1], characters[1][2]))
+		agent.set_offset(Vector2(characters[1][3], characters[1][4]))
+	if event.is_action_pressed('use_character_2'):
+		print('USE CHARACER 2')
+		agent.set_sprite_frames(characters[2][0])
+		agent.set_scale(Vector2(characters[2][1], characters[2][2]))
+		agent.set_offset(Vector2(characters[2][3], characters[2][4]))
 
 func _fixed_process(delta):
 	if OS.get_ticks_msec() - pulse >= PULSE_PERIOD:

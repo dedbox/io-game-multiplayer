@@ -7,8 +7,8 @@
 
 transform/pos = Vector2( 50, 50 )
 frames = ExtResource( 1 )
-animation = "running"
-frame = 1
+animation = "standing"
+frame = 8
 playing = true
 offset = Vector2( 0, -30 )
 script/script = ExtResource( 2 )
