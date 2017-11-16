@@ -6,6 +6,9 @@
 [node name="game" type="Node"]
 
 script/script = ExtResource( 1 )
+server_addr = [ "192.168.1.254", 3700 ]
+beacon_addr = [ "192.168.1.254", 3699 ]
+my_speed = 100
 
 [node name="grass" parent="." instance=ExtResource( 2 )]
 
