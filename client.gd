@@ -31,11 +31,6 @@ func _ready():
 	var symtab = Globals.get("symtab")
 	var START = symtab.intern("START")
 	
-	# spawn a local agent
-	my_agent = agent_factory.instance()
-	my_agent.get_node("camera").make_current()
-	add_child(my_agent)
-	
 	# start a UDP listener for world updates
 	world = WorldClient.new(beacon_addr)
 	print("%s:%d listening" % world.local_addr)
@@ -44,10 +39,16 @@ func _ready():
 	ctrl = ControlClient.new(server_addr)
 	print("%s:%d connected" % server_addr)
 	
-	# spawn a remote agent
+	# spawn my agent
 	ctrl.write([START, world.local_addr[1]])
 	my_id = ctrl.read()
 	print("agent id ", my_id)
+	OS.delay_msec(1000)
+	_process(0.01)
+	
+	# initialize my agent
+	my_agent = agents[my_id]
+	my_agent.get_node("camera").make_current()
 	
 	set_process(true)
 	set_process_input(true)
@@ -60,6 +61,7 @@ func _process(delta):
 		# unmarshal agents
 		var new_agents = {}
 		for row in msg[1]:
+			print("ROW ", row)
 			var id = row[0]
 			var pos = Vector2(float(row[3][0]), float(row[3][1]))
 			var meta = adict(row[5])
@@ -86,6 +88,7 @@ func _process(delta):
 			
 			# update skin
 			if "skin" in meta:
+				print("SET-SKIN ", meta["skin"])
 				set_skin(agent, meta["skin"])
 			
 			# update my agent ref
@@ -102,8 +105,8 @@ func _process(delta):
 
 func adict(alist):
 	var dict = {}
-	for pair in alist:
-		dict[pair[0].string] = pair[1]
+	for list in alist:
+		dict[list[0].string] = list[2]
 	return dict
 
 func limit(vec, rect):
@@ -112,10 +115,10 @@ func limit(vec, rect):
 	out.y = min(rect.pos.y + rect.size.height, max(rect.pos.y, vec.y))
 	return out
 
-func set_skin(target, id):
-	target.set_sprite_frames(skins[id][0])
-	target.set_scale(Vector2(skins[id][1], skins[id][2]))
-	target.set_offset(Vector2(skins[id][3], skins[id][4]))
+func set_skin(agent, id):
+	agent.set_sprite_frames(skins[id][0])
+	agent.set_scale(Vector2(skins[id][1], skins[id][2]))
+	agent.set_offset(Vector2(skins[id][3], skins[id][4]))
 
 func use_skin(id):
 	set_skin(my_agent, id)

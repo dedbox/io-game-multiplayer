@@ -25,7 +25,7 @@ func read():
 		return read_list()
 	elif char == "\"":
 		return read_string()
-	elif ("A" <= char and char <= "Z") or char == "-" or char == ".":
+	elif ("A" <= char and char <= "Z") or ("a" <= char and char <= "z") or char == "-" or char == ".":
 		return read_symbol()
 	elif "0" <= char and char <= "9":
 		return read_number()
@@ -73,7 +73,7 @@ func read_string():
 func read_symbol():
 	var string = ""
 	var char = peek_char()
-	while ("A" <= char and char <= "Z") or ("-" <= char and char <= ":"):
+	while ("A" <= char and char <= "Z") or ("a" <= char and char <= "z") or ("-" <= char and char <= ":"):
 		string += read_char()
 		char = peek_char()
 	return symtab.intern(string)
