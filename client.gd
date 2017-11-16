@@ -1,7 +1,7 @@
 extends Node
 
-export var server_addr = ["192.168.1.254", 3700]
-export var beacon_addr = ["192.168.1.254", 3699]
+export var server_addr = ["192.168.1.49", 3700]
+export var beacon_addr = ["192.168.1.49", 3699]
 
 export var my_speed = 100
 
@@ -43,8 +43,9 @@ func _ready():
 	ctrl.write([START, world.local_addr[1]])
 	my_id = ctrl.read()
 	print("agent id ", my_id)
-	OS.delay_msec(1000)
-	_process(0.01)
+	
+	while agents.size() == 0:
+		_process(0.01)
 	
 	# initialize my agent
 	my_agent = agents[my_id]
